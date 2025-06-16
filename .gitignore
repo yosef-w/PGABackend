@@ -1,0 +1,33 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+ENV/
+*.env
+
+# IDE/editor configs
+.vscode/
+.idea/
+*.swp
+
+# OS generated
+.DS_Store
+
+# Logs
+*.log
+
+# Database (local SQLite, if any)
+*.sqlite3
+
+# Python egg info
+*.egg-info/
+dist/
+build/
+
+# Render secrets / env files (if any local)
+.env
