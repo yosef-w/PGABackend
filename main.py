@@ -8,12 +8,9 @@ import crud
 from schemas import GarageOut, ParkingTransactionOut
 from typing import List
 
-# Create DB tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-
-# Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
@@ -45,6 +42,7 @@ async def receive_license_plate(payload: LicensePlatePayload, db: Session = Depe
 
 @app.get("/api/availability", response_model=List[GarageOut])
 def get_availability(db: Session = Depends(get_db)):
+    # API endpoint still uses response_model
     return crud.get_availability(db)
 
 @app.get("/api/find-car/{plate}", response_model=ParkingTransactionOut)
@@ -56,6 +54,7 @@ def find_car(plate: str, db: Session = Depends(get_db)):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
+    # Directly use ORM objects for dashboard (no response_model serialization)
     garages = crud.get_availability(db)
 
     data = []
@@ -77,7 +76,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "levels": level_data
         })
 
-    # ✅ Use your actual template file name
     return templates.TemplateResponse("dashboard.html.j2", {
         "request": request,
         "data": data
