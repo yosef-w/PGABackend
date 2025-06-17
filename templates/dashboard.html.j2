@@ -31,7 +31,7 @@
           </p>
         </div>
         <div class="card-body">
-          <canvas id="garage-chart-{{ loop.index }}"></canvas>
+          <canvas id="garage-chart-{{ garage.garage_name | replace(' ', '-') }}"></canvas>
           
           <div class="row mt-3">
             {% for level in garage.levels %}
@@ -45,7 +45,7 @@
                       {{ level.percent_available | round(1) }}%
                     </span>
                   </p>
-                  <canvas id="level-chart-{{ loop.parent.loop.index }}-{{ loop.index }}"></canvas>
+                  <canvas id="level-chart-{{ garage.garage_name | replace(' ', '-') }}-{{ level.level_name | replace(' ', '-') }}"></canvas>
                 </div>
               </div>
             {% endfor %}
@@ -58,9 +58,10 @@
   <script>
     document.addEventListener("DOMContentLoaded", function () {
       const data = {{ data | tojson }};
-
-      data.forEach((garage, gIdx) => {
-        const gCtx = document.getElementById(`garage-chart-${gIdx + 1}`).getContext('2d');
+      
+      data.forEach(garage => {
+        const gId = `garage-chart-${garage.garage_name.replace(/ /g, '-')}`;
+        const gCtx = document.getElementById(gId).getContext('2d');
         const gLabels = garage.levels.map(l => l.level_name);
         const gAvailable = garage.levels.map(l => l.available_bays);
         const gOccupied = garage.levels.map(l => l.total_bays - l.available_bays);
@@ -93,8 +94,9 @@
           }
         });
 
-        garage.levels.forEach((level, lIdx) => {
-          const lCtx = document.getElementById(`level-chart-${gIdx + 1}-${lIdx + 1}`).getContext('2d');
+        garage.levels.forEach(level => {
+          const lId = `level-chart-${garage.garage_name.replace(/ /g, '-')}-${level.level_name.replace(/ /g, '-')}`;
+          const lCtx = document.getElementById(lId).getContext('2d');
           const lLabels = level.zones.map(z => z.zone_name);
           const lAvailable = level.zones.map(z => z.available_bays);
           const lOccupied = level.zones.map(z => z.total_bays - z.available_bays);
@@ -104,8 +106,7 @@
             data: {
               labels: lLabels,
               datasets: [{
-                label: 'Zone Bays',
-                data: lAvailable.map((a, i) => a + lOccupied[i]),
+                data: lLabels.map((_, i) => lAvailable[i] + lOccupied[i]),
                 backgroundColor: lLabels.map((_, i) => i % 2 === 0 ? 'rgba(54, 162, 235, 0.6)' : 'rgba(255, 205, 86, 0.6)')
               }]
             },
