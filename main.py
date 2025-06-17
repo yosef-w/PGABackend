@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import RootModel
 from database import Base, engine, SessionLocal
 import crud
+import models  # ✅ Needed for direct DB queries in dashboard
 from schemas import GarageOut, ParkingTransactionOut
 from typing import List
 
@@ -42,7 +43,6 @@ async def receive_license_plate(payload: LicensePlatePayload, db: Session = Depe
 
 @app.get("/api/availability", response_model=List[GarageOut])
 def get_availability(db: Session = Depends(get_db)):
-    # API endpoint still uses response_model
     return crud.get_availability(db)
 
 @app.get("/api/find-car/{plate}", response_model=ParkingTransactionOut)
@@ -54,21 +54,21 @@ def find_car(plate: str, db: Session = Depends(get_db)):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    # Directly use ORM objects for dashboard (no response_model serialization)
-    garages = crud.get_availability(db)
+    # Fetch ORM objects directly (not Pydantic response models)
+    garages = db.query(models.Garage).all()
 
     data = []
     for g in garages:
         level_data = []
         for level in g.levels:
-            bay_count = sum(len(zone.bays) for zone in level.zones)
+            total_bays = sum(len(zone.bays) for zone in level.zones)
             available_bays = sum(
                 sum(1 for bay in zone.bays if bay.status == "available")
                 for zone in level.zones
             )
             level_data.append({
                 "level_name": level.name,
-                "total_bays": bay_count,
+                "total_bays": total_bays,
                 "available_bays": available_bays
             })
         data.append({
