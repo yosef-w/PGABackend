@@ -8,9 +8,12 @@ import crud
 from schemas import GarageOut, ParkingTransactionOut
 from typing import List
 
+# Create DB tables
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+# Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
@@ -53,21 +56,20 @@ def find_car(plate: str, db: Session = Depends(get_db)):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    # Directly query models so relationships are intact
-    garages = db.query(crud.models.Garage).all()
+    garages = crud.get_availability(db)
 
     data = []
     for g in garages:
         level_data = []
         for level in g.levels:
-            total_bays = sum(len(zone.bays) for zone in level.zones)
+            bay_count = sum(len(zone.bays) for zone in level.zones)
             available_bays = sum(
                 sum(1 for bay in zone.bays if bay.status == "available")
                 for zone in level.zones
             )
             level_data.append({
                 "level_name": level.name,
-                "total_bays": total_bays,
+                "total_bays": bay_count,
                 "available_bays": available_bays
             })
         data.append({
@@ -75,7 +77,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "levels": level_data
         })
 
-    return templates.TemplateResponse("dashboard.html", {
+    # ✅ Use your actual template file name
+    return templates.TemplateResponse("dashboard.html.j2", {
         "request": request,
         "data": data
     })
