@@ -3,170 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <title>PGA Parking Dashboard</title>
-  <!-- Bootstrap CDN -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .percent-high { color: green; font-weight: bold; }
+    .percent-mid { color: orange; font-weight: bold; }
+    .percent-low { color: red; font-weight: bold; }
+  </style>
 </head>
 <body class="bg-light">
-  <div class="container my-4">
-    <h1 class="text-center mb-4">PGA Parking Dashboard</h1>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <button class="btn btn-primary" onclick="location.reload()">Manual Refresh</button>
-      </div>
-      <div class="text-muted" id="last-updated">
-        Last updated: <span id="timestamp"></span>
-      </div>
-    </div>
-
-    <div class="row mb-4">
-      <div class="col-md-4">
-        <div class="card text-bg-info mb-3">
-          <div class="card-body">
-            <h5 class="card-title">Total Garages</h5>
-            <p class="card-text fs-3" id="total-garages">0</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card text-bg-success mb-3">
-          <div class="card-body">
-            <h5 class="card-title">Total Bays</h5>
-            <p class="card-text fs-3" id="total-bays">0</p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="card text-bg-warning mb-3">
-          <div class="card-body">
-            <h5 class="card-title">Available Bays</h5>
-            <p class="card-text fs-3" id="available-bays">0</p>
-          </div>
-        </div>
-      </div>
-    </div>
+  <div class="container mt-5">
+    <h1 class="mb-4">PGA Parking Dashboard</h1>
+    <button class="btn btn-primary mb-3" onclick="location.reload()">Refresh</button>
 
     {% for garage in data %}
-      <div class="card mb-4">
-        <div class="card-header">
+      <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
           <h2 class="h5">{{ garage.garage_name }}</h2>
+          <p class="mb-0">
+            Total Bays: {{ garage.total_bays }} |
+            Available Bays: {{ garage.available_bays }} |
+            Available: <span class="{% if garage.percent_available >= 75 %}percent-high{% elif garage.percent_available >= 40 %}percent-mid{% else %}percent-low{% endif %}">
+              {{ garage.percent_available | round(1) }}%
+            </span>
+          </p>
         </div>
         <div class="card-body">
-          <table class="table table-bordered table-striped">
-            <thead class="table-dark">
-              <tr>
-                <th>Level</th>
-                <th>Total Bays</th>
-                <th>Available Bays</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for level in garage.levels %}
-                <tr>
-                  <td>{{ level.level_name }}</td>
-                  <td>{{ level.total_bays }}</td>
-                  <td>{{ level.available_bays }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          {% for level in garage.levels %}
+            <div class="mb-3">
+              <h3 class="h6">Level: {{ level.level_name }}</h3>
+              <p>
+                Total Bays: {{ level.total_bays }} |
+                Available Bays: {{ level.available_bays }} |
+                Available: <span class="{% if level.percent_available >= 75 %}percent-high{% elif level.percent_available >= 40 %}percent-mid{% else %}percent-low{% endif %}">
+                  {{ level.percent_available | round(1) }}%
+                </span>
+              </p>
 
-          <canvas id="chart-{{ loop.index }}"></canvas>
+              <table class="table table-sm table-bordered table-hover">
+                <thead class="table-light">
+                  <tr>
+                    <th>Zone</th>
+                    <th>Total Bays</th>
+                    <th>Available Bays</th>
+                    <th>% Available</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for zone in level.zones %}
+                    <tr>
+                      <td>{{ zone.zone_name }}</td>
+                      <td>{{ zone.total_bays }}</td>
+                      <td>{{ zone.available_bays }}</td>
+                      <td>
+                        <span class="{% if zone.percent_available >= 75 %}percent-high{% elif zone.percent_available >= 40 %}percent-mid{% else %}percent-low{% endif %}">
+                          {{ zone.percent_available | round(1) }}%
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% endfor %}
         </div>
       </div>
     {% endfor %}
   </div>
-
-  <script>
-    const garageData = {{ data | tojson }};
-
-    function updateSummary() {
-      let totalGarages = garageData.length;
-      let totalBays = 0;
-      let availableBays = 0;
-
-      garageData.forEach(garage => {
-        garage.levels.forEach(level => {
-          totalBays += level.total_bays;
-          availableBays += level.available_bays;
-        });
-      });
-
-      document.getElementById("total-garages").textContent = totalGarages;
-      document.getElementById("total-bays").textContent = totalBays;
-      document.getElementById("available-bays").textContent = availableBays;
-    }
-
-    function updateCharts() {
-      garageData.forEach((garage, idx) => {
-        const ctx = document.getElementById(`chart-${idx + 1}`).getContext('2d');
-        const labels = garage.levels.map(l => l.level_name);
-        const totalBays = garage.levels.map(l => l.total_bays);
-        const availableBays = garage.levels.map(l => l.available_bays);
-
-        try {
-          new Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: 'Total Bays',
-                  data: totalBays,
-                  backgroundColor: 'rgba(54, 162, 235, 0.6)'
-                },
-                {
-                  label: 'Available Bays',
-                  data: availableBays,
-                  backgroundColor: 'rgba(75, 192, 192, 0.6)'
-                }
-              ]
-            },
-            options: {
-              responsive: true,
-              plugins: {
-                tooltip: {
-                  callbacks: {
-                    label: function(context) {
-                      const val = context.raw;
-                      return `${context.dataset.label}: ${val}`;
-                    }
-                  }
-                }
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  precision: 0
-                }
-              }
-            }
-          });
-        } catch (err) {
-          console.error("Chart rendering error:", err);
-        }
-      });
-    }
-
-    function updateTimestamp() {
-      const now = new Date();
-      document.getElementById("timestamp").textContent = now.toLocaleString();
-    }
-
-    function autoRefresh(interval = 30000) {
-      setInterval(() => {
-        location.reload();
-      }, interval);
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-      updateSummary();
-      updateCharts();
-      updateTimestamp();
-      autoRefresh();
-    });
-  </script>
 </body>
 </html>

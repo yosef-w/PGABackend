@@ -54,25 +54,49 @@ def find_car(plate: str, db: Session = Depends(get_db)):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    # Fetch ORM objects directly (not Pydantic response models)
     garages = db.query(models.Garage).all()
 
     data = []
     for g in garages:
+        garage_total_bays = 0
+        garage_available_bays = 0
         level_data = []
+
         for level in g.levels:
-            total_bays = sum(len(zone.bays) for zone in level.zones)
-            available_bays = sum(
-                sum(1 for bay in zone.bays if bay.status == "available")
-                for zone in level.zones
-            )
+            level_total_bays = 0
+            level_available_bays = 0
+            zone_data = []
+
+            for zone in level.zones:
+                zone_total_bays = len(zone.bays)
+                zone_available_bays = sum(1 for bay in zone.bays if bay.status == "available")
+
+                level_total_bays += zone_total_bays
+                level_available_bays += zone_available_bays
+
+                zone_data.append({
+                    "zone_name": zone.name,
+                    "total_bays": zone_total_bays,
+                    "available_bays": zone_available_bays,
+                    "percent_available": (zone_available_bays / zone_total_bays * 100) if zone_total_bays else 0
+                })
+
+            garage_total_bays += level_total_bays
+            garage_available_bays += level_available_bays
+
             level_data.append({
                 "level_name": level.name,
-                "total_bays": total_bays,
-                "available_bays": available_bays
+                "total_bays": level_total_bays,
+                "available_bays": level_available_bays,
+                "percent_available": (level_available_bays / level_total_bays * 100) if level_total_bays else 0,
+                "zones": zone_data
             })
+
         data.append({
             "garage_name": g.name,
+            "total_bays": garage_total_bays,
+            "available_bays": garage_available_bays,
+            "percent_available": (garage_available_bays / garage_total_bays * 100) if garage_total_bays else 0,
             "levels": level_data
         })
 
