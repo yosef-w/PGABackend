@@ -1,4 +1,6 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from pydantic import RootModel
 from database import Base, engine, SessionLocal
@@ -9,10 +11,11 @@ from typing import List
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
 @app.get("/")
 def read_root():
-    return {"message": "The is the backend for PGA!"}
+    return {"message": "This is the backend for PGA!"}
 
 def get_db():
     db = SessionLocal()
@@ -21,7 +24,6 @@ def get_db():
     finally:
         db.close()
 
-# Use RootModel for dynamic JSON bodies
 class OccupancyPayload(RootModel[dict]):
     pass
 
@@ -48,3 +50,31 @@ def find_car(plate: str, db: Session = Depends(get_db)):
     if tx:
         return tx
     return {"status": "car not found"}
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request, db: Session = Depends(get_db)):
+    garages = crud.get_availability(db)
+
+    data = []
+    for g in garages:
+        level_data = []
+        for level in g.levels:
+            bay_count = sum(len(zone.bays) for zone in level.zones)
+            available_bays = sum(
+                sum(1 for bay in zone.bays if bay.status == "available")
+                for zone in level.zones
+            )
+            level_data.append({
+                "level_name": level.name,
+                "total_bays": bay_count,
+                "available_bays": available_bays
+            })
+        data.append({
+            "garage_name": g.name,
+            "levels": level_data
+        })
+
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "data": data
+    })

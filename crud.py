@@ -57,7 +57,55 @@ def save_license_plate(db: Session, data: dict):
     db.commit()
 
 def get_availability(db: Session):
-    return db.query(models.Garage).all()
+    garages = db.query(models.Garage).all()
+    result = []
+
+    for garage in garages:
+        garage_dict = {
+            "id": garage.id,
+            "name": garage.name,
+            "available_spots": 0,
+            "levels": []
+        }
+
+        for level in garage.levels:
+            level_dict = {
+                "id": level.id,
+                "name": level.name,
+                "available_spots": 0,
+                "zones": []
+            }
+
+            for zone in level.zones:
+                zone_dict = {
+                    "id": zone.id,
+                    "name": zone.name,
+                    "bays": []
+                }
+
+                for bay in zone.bays:
+                    bay_info = {
+                        "id": bay.id,
+                        "bay_number": bay.bay_number,
+                        "status": bay.status,
+                        "reservation_status": bay.reservation_status,
+                        "overstayer_status": bay.overstayer_status,
+                        "license_plate": bay.license_plate
+                    }
+
+                    if bay.status == "available":
+                        level_dict["available_spots"] += 1
+
+                    zone_dict["bays"].append(bay_info)
+
+                level_dict["zones"].append(zone_dict)
+
+            garage_dict["levels"].append(level_dict)
+            garage_dict["available_spots"] += level_dict["available_spots"]
+
+        result.append(garage_dict)
+
+    return result
 
 def find_car(db: Session, plate: str):
     return db.query(models.ParkingTransaction).filter_by(license_plate=plate, timestamp_exit=None).first()
