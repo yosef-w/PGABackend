@@ -14,9 +14,12 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-@app.get("/")
-def read_root():
-    return {"message": "This is the backend for PGA!"}
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("home.html.j2", {
+        "request": request,
+        "base_url": "https://pgabackend-udmn.onrender.com"
+    })
 
 def get_db():
     db = SessionLocal()
