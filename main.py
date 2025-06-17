@@ -53,20 +53,21 @@ def find_car(plate: str, db: Session = Depends(get_db)):
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    garages = crud.get_availability(db)
+    # Directly query models so relationships are intact
+    garages = db.query(crud.models.Garage).all()
 
     data = []
     for g in garages:
         level_data = []
         for level in g.levels:
-            bay_count = sum(len(zone.bays) for zone in level.zones)
+            total_bays = sum(len(zone.bays) for zone in level.zones)
             available_bays = sum(
                 sum(1 for bay in zone.bays if bay.status == "available")
                 for zone in level.zones
             )
             level_data.append({
                 "level_name": level.name,
-                "total_bays": bay_count,
+                "total_bays": total_bays,
                 "available_bays": available_bays
             })
         data.append({

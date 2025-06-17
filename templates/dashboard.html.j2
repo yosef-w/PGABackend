@@ -9,10 +9,44 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
-  <div class="container mt-5">
-    <h1 class="mb-4">PGA Parking Dashboard</h1>
+  <div class="container my-4">
+    <h1 class="text-center mb-4">PGA Parking Dashboard</h1>
 
-    <button class="btn btn-primary mb-3" onclick="location.reload()">Refresh</button>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <button class="btn btn-primary" onclick="location.reload()">Manual Refresh</button>
+      </div>
+      <div class="text-muted" id="last-updated">
+        Last updated: <span id="timestamp"></span>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="card text-bg-info mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Total Garages</h5>
+            <p class="card-text fs-3" id="total-garages">0</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-bg-success mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Total Bays</h5>
+            <p class="card-text fs-3" id="total-bays">0</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card text-bg-warning mb-3">
+          <div class="card-body">
+            <h5 class="card-title">Available Bays</h5>
+            <p class="card-text fs-3" id="available-bays">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
     {% for garage in data %}
       <div class="card mb-4">
@@ -46,43 +80,92 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const garageData = {{ data | tojson }};
-      
+    const garageData = {{ data | tojson }};
+
+    function updateSummary() {
+      let totalGarages = garageData.length;
+      let totalBays = 0;
+      let availableBays = 0;
+
+      garageData.forEach(garage => {
+        garage.levels.forEach(level => {
+          totalBays += level.total_bays;
+          availableBays += level.available_bays;
+        });
+      });
+
+      document.getElementById("total-garages").textContent = totalGarages;
+      document.getElementById("total-bays").textContent = totalBays;
+      document.getElementById("available-bays").textContent = availableBays;
+    }
+
+    function updateCharts() {
       garageData.forEach((garage, idx) => {
         const ctx = document.getElementById(`chart-${idx + 1}`).getContext('2d');
         const labels = garage.levels.map(l => l.level_name);
         const totalBays = garage.levels.map(l => l.total_bays);
         const availableBays = garage.levels.map(l => l.available_bays);
 
-        new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: labels,
-            datasets: [
-              {
-                label: 'Total Bays',
-                data: totalBays,
-                backgroundColor: 'rgba(54, 162, 235, 0.6)'
+        try {
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Total Bays',
+                  data: totalBays,
+                  backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                },
+                {
+                  label: 'Available Bays',
+                  data: availableBays,
+                  backgroundColor: 'rgba(75, 192, 192, 0.6)'
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      const val = context.raw;
+                      return `${context.dataset.label}: ${val}`;
+                    }
+                  }
+                }
               },
-              {
-                label: 'Available Bays',
-                data: availableBays,
-                backgroundColor: 'rgba(75, 192, 192, 0.6)'
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            scales: {
-              y: {
-                beginAtZero: true,
-                precision: 0
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  precision: 0
+                }
               }
             }
-          }
-        });
+          });
+        } catch (err) {
+          console.error("Chart rendering error:", err);
+        }
       });
+    }
+
+    function updateTimestamp() {
+      const now = new Date();
+      document.getElementById("timestamp").textContent = now.toLocaleString();
+    }
+
+    function autoRefresh(interval = 30000) {
+      setInterval(() => {
+        location.reload();
+      }, interval);
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      updateSummary();
+      updateCharts();
+      updateTimestamp();
+      autoRefresh();
     });
   </script>
 </body>
