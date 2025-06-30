@@ -1,8 +1,15 @@
-import requests
+import os
 import random
+from typing import Dict
 
-# Your Render URL
-BASE_URL = "https://pgabackend-udmn.onrender.com/api/indect/occupancy"
+import requests
+
+BASE_URL = os.getenv(
+    "API_BASE_URL",
+    "https://pgabackend-udmn.onrender.com/api/indect/occupancy",
+)
+
+session = requests.Session()
 
 def generate_bays(num_bays=10):
     bays = {}
@@ -30,12 +37,17 @@ def generate_garage(garage_name):
         "Zones": [generate_level(i+1) for i in range(2)]  # 2 levels per garage
     }
 
-def push_data(garage_payload):
-    response = requests.post(BASE_URL, json=garage_payload)
-    if response.ok:
-        print(f"✅ Successfully pushed data for {garage_payload['Name']}")
-    else:
-        print(f"❌ Failed to push data for {garage_payload['Name']}: {response.status_code} - {response.text}")
+def push_data(garage_payload: Dict[str, object]) -> None:
+    """Send a single garage payload to the API with error handling."""
+
+    try:
+        response = session.post(BASE_URL, json=garage_payload, timeout=10)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as exc:
+        print(f"❌ Error pushing data for {garage_payload['Name']}: {exc}")
+        return
+
+    print(f"✅ Successfully pushed data for {garage_payload['Name']}")
 
 if __name__ == "__main__":
     # Define garages

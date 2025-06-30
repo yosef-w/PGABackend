@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -13,6 +13,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+api_router = APIRouter(prefix="/api")
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -31,29 +32,44 @@ def get_db():
 class OccupancyPayload(RootModel[dict]):
     pass
 
+
 class LicensePlatePayload(RootModel[dict]):
     pass
 
-@app.post("/api/indect/occupancy")
-async def receive_occupancy(payload: OccupancyPayload, db: Session = Depends(get_db)):
-    crud.update_occupancy(db, payload.root)
+
+@api_router.post("/indect/occupancy")
+async def receive_occupancy(
+    payload: OccupancyPayload, db: Session = Depends(get_db)
+):
+    try:
+        crud.update_occupancy(db, payload.root)
+    except Exception as exc:  # pragma: no cover - simple safety
+        raise HTTPException(status_code=400, detail=str(exc))
     return {"status": "occupancy processed"}
 
-@app.post("/api/indect/license-plate")
-async def receive_license_plate(payload: LicensePlatePayload, db: Session = Depends(get_db)):
-    crud.save_license_plate(db, payload.root)
+
+@api_router.post("/indect/license-plate")
+async def receive_license_plate(
+    payload: LicensePlatePayload, db: Session = Depends(get_db)
+):
+    try:
+        crud.save_license_plate(db, payload.root)
+    except Exception as exc:  # pragma: no cover - simple safety
+        raise HTTPException(status_code=400, detail=str(exc))
     return {"status": "license plate processed"}
 
-@app.get("/api/availability", response_model=List[GarageOut])
+
+@api_router.get("/availability", response_model=List[GarageOut])
 def get_availability(db: Session = Depends(get_db)):
     return crud.get_availability(db)
 
-@app.get("/api/find-car/{plate}", response_model=ParkingTransactionOut)
+
+@api_router.get("/find-car/{plate}", response_model=ParkingTransactionOut)
 def find_car(plate: str, db: Session = Depends(get_db)):
     tx = crud.find_car(db, plate)
-    if tx:
-        return tx
-    return {"status": "car not found"}
+    if not tx:
+        raise HTTPException(status_code=404, detail="car not found")
+    return tx
 
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db)):
@@ -107,3 +123,6 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "request": request,
         "data": data
     })
+
+
+app.include_router(api_router)
