@@ -24,7 +24,9 @@ export USE_SQLITE=true
 ```
 
 This will create a local SQLite file `test.db` in the project directory.
-In production set `DATABASE_URL` to your connection string:
+If you don't set `DATABASE_URL`, the application defaults to the production
+database used by the hosted instance. To override it, export your own
+connection string:
 ```bash
 export DATABASE_URL="postgresql://pgabackend_user:SD9jd5JEZPLt16kZIswcunk2MTCME5Qn@dpg-d188l0ogjchc73dtbti0-a.oregon-postgres.render.com/pgabackend"
 ```
